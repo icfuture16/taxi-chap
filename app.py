@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from google.cloud import vision
 from google.oauth2 import service_account
 
@@ -13,8 +13,12 @@ credentials = service_account.Credentials.from_service_account_info(
 
 client = vision.ImageAnnotatorClient(credentials=credentials)
 
+# Variable globale pour stocker les résultats de l'analyse
+analysis_results = []
+
 @app.route('/webhook', methods=['POST'])
 def github_webhook():
+    global analysis_results
     data = request.json
     # Vérifiez que l'événement est un push
     if data['ref'] == 'refs/heads/main':
@@ -32,13 +36,23 @@ def github_webhook():
                     response = client.label_detection(image=image)
                     labels = response.label_annotations
 
-                    # Afficher les résultats
-                    print('Labels:')
-                    for label in labels:
-                        print(label.description)
+                    # Enregistrer les résultats dans la variable globale
+                    analysis_results = [label.description for label in labels]
 
                     return jsonify({'status': 'image processed'}), 200
     return jsonify({'status': 'ignored'}), 200
+
+@app.route('/results', methods=['GET'])
+def show_results():
+    global analysis_results
+    return render_template_string('''
+        <h1>Résultats de l'Analyse d'Image</h1>
+        <ul>
+        {% for result in results %}
+            <li>{{ result }}</li>
+        {% endfor %}
+        </ul>
+    ''', results=analysis_results)
 
 if __name__ == '__main__':
     app.run(debug=True)
