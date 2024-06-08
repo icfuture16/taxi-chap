@@ -1,1 +1,1 @@
-prinx_client
+prix_client
